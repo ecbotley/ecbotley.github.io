@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EC Botley</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Playfair+Display:ital@1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1b222b;
+    --panel:#242d38;
+    --panel-2:#2c3644;
+    --teal:#2fd6c4;
+    --teal-deep:#149c8f;
+    --white:#f4f6f7;
+    --muted:#93a0ac;
+    --line:#333e4c;
+  }
+
+  *{box-sizing:border-box;}
+
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--white);
+    font-family:'Inter', sans-serif;
+    display:flex;
+    justify-content:center;
+    padding:48px 20px 80px;
+    min-height:100vh;
+  }
+
+  .sheet{
+    width:100%;
+    max-width:760px;
+  }
+
+  /* ---------- hero (photo + overlay) ---------- */
+  .hero{
+    position:relative;
+    border-radius:24px;
+    overflow:hidden;
+    padding:56px 36px 44px;
+    margin-bottom:40px;
+    background-image:url('assets/hero-bg.jpg');
+    background-size:cover;
+    background-position:center;
+    box-shadow:0 24px 50px -20px rgba(0,0,0,0.55);
+  }
+  .hero::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:linear-gradient(200deg, rgba(20,28,38,0.35) 0%, rgba(16,24,32,0.78) 65%, rgba(12,18,25,0.92) 100%);
+  }
+  .hero-content{position:relative;}
+
+  /* ---------- eyebrow pill ---------- */
+  .pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:0.1em;
+    color:var(--teal);
+    border:1px solid rgba(47,214,196,0.55);
+    background:rgba(20,30,38,0.4);
+    border-radius:999px;
+    padding:7px 16px;
+    margin-bottom:22px;
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead h1{
+    font-family:'Anton', sans-serif;
+    font-weight:400;
+    font-size:clamp(40px, 10vw, 64px);
+    letter-spacing:0.01em;
+    margin:0;
+    line-height:0.95;
+    text-transform:uppercase;
+  }
+  .masthead h1 .accent{color:var(--teal);}
+  .masthead .loc{
+    font-size:12px;
+    letter-spacing:0.14em;
+    color:var(--muted);
+    margin:8px 0 0;
+    font-weight:600;
+    text-transform:uppercase;
+  }
+
+  .tagline{
+    margin:20px 0 0;
+  }
+  .tagline .lead{
+    font-family:'Anton', sans-serif;
+    font-weight:400;
+    font-size:15px;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    color:var(--white);
+    display:block;
+    margin-bottom:4px;
+  }
+  .tagline .roles{
+    font-family:'Playfair Display', serif;
+    font-style:italic;
+    font-size:19px;
+    color:var(--teal);
+  }
+
+  /* ---------- section labels ---------- */
+  .section-label{
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:0.16em;
+    text-transform:uppercase;
+    color:var(--teal);
+    margin:0 0 14px;
+  }
+
+  /* ---------- badges ---------- */
+  .badgerow{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:12px;
+    margin-bottom:42px;
+  }
+  @media (max-width:640px){
+    .badgerow{grid-template-columns:repeat(2, 1fr);}
+  }
+
+  .badge{
+    height:152px;
+    perspective:900px;
+    cursor:pointer;
+  }
+  .badge-inner{
+    position:relative;
+    width:100%;
+    height:100%;
+    transition:transform .5s cubic-bezier(.4,.2,.2,1);
+    transform-style:preserve-3d;
+  }
+  .badge.flipped .badge-inner{transform:rotateY(180deg);}
+
+  .face{
+    position:absolute;
+    inset:0;
+    backface-visibility:hidden;
+    border-radius:18px;
+    padding:18px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+  }
+
+  .face.front{
+    background:var(--panel);
+    box-shadow:0 10px 22px -12px rgba(0,0,0,0.5);
+  }
+  .facenum{
+    width:26px;
+    height:26px;
+    border-radius:999px;
+    border:1.5px solid var(--teal);
+    color:var(--teal);
+    font-size:11px;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .face.front .role{
+    font-family:'Anton', sans-serif;
+    font-weight:400;
+    font-size:16px;
+    line-height:1.15;
+    text-transform:uppercase;
+    letter-spacing:0.01em;
+  }
+  .face.front .tap{
+    font-size:10.5px;
+    letter-spacing:0.06em;
+    color:var(--muted);
+    text-transform:uppercase;
+    font-weight:600;
+  }
+
+  .face.back{
+    background:var(--teal);
+    color:#0c2422;
+    transform:rotateY(180deg);
+    justify-content:center;
+  }
+  .face.back p{
+    margin:0;
+    font-size:12.5px;
+    line-height:1.5;
+    font-weight:500;
+  }
+
+  .badge:focus-visible .badge-inner{outline:2px solid var(--teal); outline-offset:3px;}
+
+  /* ---------- tools directory ---------- */
+  .directory{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    margin-bottom:46px;
+  }
+  @media (max-width:520px){
+    .directory{grid-template-columns:1fr;}
+  }
+
+  .dcard{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    text-decoration:none;
+    background:var(--panel);
+    border-radius:18px;
+    padding:20px 20px;
+    color:var(--white);
+    box-shadow:0 10px 22px -14px rgba(0,0,0,0.5);
+    transition:transform .16s ease, background .16s ease;
+  }
+  .dcard:hover, .dcard:focus-visible{
+    transform:translateY(-2px);
+    background:var(--panel-2);
+  }
+  .dcard:focus-visible{outline:2px solid var(--teal); outline-offset:2px;}
+
+  .dcard .name{
+    font-family:'Anton', sans-serif;
+    font-weight:400;
+    font-size:16px;
+    text-transform:uppercase;
+    letter-spacing:0.01em;
+  }
+  .dcard .sub{
+    display:block;
+    font-size:12.5px;
+    color:var(--muted);
+    margin-top:4px;
+    font-weight:400;
+  }
+  .dcard .arrow{
+    font-size:18px;
+    font-weight:700;
+    color:var(--teal);
+  }
+
+  /* ---------- footer ---------- */
+  footer{
+    padding-top:8px;
+    text-align:center;
+  }
+  footer .verse{
+    max-width:44ch;
+    margin:0 auto 8px;
+    font-family:'Playfair Display', serif;
+    font-style:italic;
+    font-size:15px;
+    line-height:1.55;
+    color:#d5dade;
+  }
+  footer .ref{
+    font-size:11px;
+    letter-spacing:0.12em;
+    color:var(--teal);
+    font-weight:700;
+    text-transform:uppercase;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .badge-inner{transition:none;}
+    .dcard{transition:none;}
+  }
+</style>
+</head>
+<body>
+
+  <div class="sheet">
+
+    <div class="hero">
+      <div class="hero-content">
+        <span class="pill">LOS ANGELES</span>
+
+        <header class="masthead">
+          <h1>EC <span class="accent">BOTLEY</span></h1>
+          <p class="loc">Multi-hyphenate operator</p>
+        </header>
+
+        <div class="tagline">
+          <span class="lead">Operator.</span>
+          <span class="roles">Production Manager · Owner · Football Mom · Believer.</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="section-label">Roles — Tap to Flip</p>
+    <div class="badgerow">
+      <button class="badge">
+        <div class="badge-inner">
+          <div class="face front">
+            <span class="facenum">01</span>
+            <span class="role">Production<br>Manager</span>
+            <span class="tap">Tap →</span>
+          </div>
+          <div class="face back">
+            <p>Running day-to-day production on a large-cast Spanish-language audio drama — schedules, tracking, the pieces that can't slip.</p>
+          </div>
+        </div>
+      </button>
+
+      <button class="badge">
+        <div class="badge-inner">
+          <div class="face front">
+            <span class="facenum">02</span>
+            <span class="role">Owner</span>
+            <span class="tap">Tap →</span>
+          </div>
+          <div class="face back">
+            <p>Co-own Merch Los Angeles with my husband — team gear, done right, start to finish.</p>
+          </div>
+        </div>
+      </button>
+
+      <button class="badge">
+        <div class="badge-inner">
+          <div class="face front">
+            <span class="facenum">03</span>
+            <span class="role">Football<br>Mom</span>
+            <span class="tap">Tap →</span>
+          </div>
+          <div class="face back">
+            <p>On the sideline for my son. Coffee in hand, count on me for logistics before anyone asks.</p>
+          </div>
+        </div>
+      </button>
+
+      <button class="badge">
+        <div class="badge-inner">
+          <div class="face front">
+            <span class="facenum">04</span>
+            <span class="role">Believer</span>
+            <span class="tap">Tap →</span>
+          </div>
+          <div class="face back">
+            <p>Faith is the thing everything else gets built on top of.</p>
+          </div>
+        </div>
+      </button>
+    </div>
+
+    <p class="section-label">Tools</p>
+    <div class="directory">
+      <a class="dcard" href="/availability">
+        <span>
+          <span class="name">Availability</span>
+          <span class="sub">See who's free and when</span>
+        </span>
+        <span class="arrow">→</span>
+      </a>
+      <a class="dcard" href="/redvines">
+        <span>
+          <span class="name">Redvines</span>
+          <span class="sub">A working tool, live and in use</span>
+        </span>
+        <span class="arrow">→</span>
+      </a>
+    </div>
+
+    <footer>
+      <p class="verse">"Consider the ravens: for they neither sow nor reap; which neither have storehouse nor barn; and God feedeth them: how much more are ye better than the fowls?"</p>
+      <p class="ref">Luke 12:24, KJV</p>
+    </footer>
+
+  </div>
+
+<script>
+  document.querySelectorAll('.badge').forEach(btn => {
+    btn.addEventListener('click', () => btn.classList.toggle('flipped'));
+  });
+</script>
+
+</body>
+</html>

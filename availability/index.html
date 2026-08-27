@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   :root{
     --ink:#14171c;
@@ -73,6 +74,33 @@
   .note{text-align:center;color:var(--muted);font-size:12px;margin-top:10px;}
   .confirm{display:none;text-align:center;padding:36px 10px;}
   .confirm .big{font-family:'Bebas Neue';font-size:30px;color:var(--amber);}
+  .summarylist{max-width:340px;margin:20px auto 0;text-align:left;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  .summarylist .srow{display:flex;justify-content:space-between;gap:10px;padding:5px 0;
+    font-size:13px;border-bottom:1px solid var(--line);}
+  .summarylist .srow:last-child{border-bottom:none;}
+  .summarylist .sdate{color:var(--paper);}
+  .summarylist .sblock{color:var(--amber);font-weight:600;}
+  .copybtn{margin-top:16px;background:var(--panel-raised);border:1px solid var(--line);color:var(--paper);
+    padding:11px 20px;border-radius:9px;font-family:'Inter';font-weight:600;font-size:13px;cursor:pointer;}
+  .copybtn:hover{border-color:var(--amber);}
+  .copystatus{color:var(--amber);font-size:12px;min-height:16px;margin-top:8px;}
+  .savebtn{margin-top:10px;background:var(--amber);color:#1a1204;border:none;border-radius:9px;
+    padding:11px 20px;font-family:'Inter';font-weight:700;font-size:13px;cursor:pointer;}
+  .savebtn:hover{opacity:0.92;}
+
+  .receiptcard{position:absolute;left:-9999px;top:0;width:420px;background:var(--ink);
+    padding:32px 28px;font-family:'Inter',sans-serif;}
+  .receiptcard .rc-eyebrow{font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:0.14em;
+    text-transform:uppercase;color:var(--muted);text-align:center;}
+  .receiptcard .rc-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:0.03em;
+    color:var(--paper);text-align:center;margin:4px 0 2px;}
+  .receiptcard .rc-name{text-align:center;color:var(--amber);font-size:14px;font-weight:600;margin-bottom:22px;}
+  .receiptcard .rc-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;
+    border-bottom:1px solid var(--line);font-size:13px;}
+  .receiptcard .rc-row:last-child{border-bottom:none;}
+  .receiptcard .rc-date{color:var(--paper);}
+  .receiptcard .rc-block{color:var(--amber);font-weight:700;}
 
   /* manager view */
   #managerView{display:none;}
@@ -138,7 +166,18 @@
     <div class="confirm" id="confirm">
       <div class="big">GOT IT ✓</div>
       <p class="sub" id="confirmText"></p>
+      <div class="summarylist" id="summaryList"></div>
+      <button class="copybtn" id="copyBtn">Copy my submission</button>
+      <button class="savebtn" id="saveImgBtn">Save as image</button>
+      <p class="copystatus" id="copyStatus"></p>
     </div>
+  </div>
+
+  <div class="receiptcard" id="receiptCard">
+    <div class="rc-eyebrow">¡VIVA! LA SANTA BIBLIA</div>
+    <div class="rc-title">MY AVAILABILITY</div>
+    <div class="rc-name" id="rcName"></div>
+    <div id="rcRows"></div>
   </div>
 
   <!-- MANAGER VIEW -->
@@ -425,7 +464,71 @@ async function submitAvailability(){
     const confirmEl = document.getElementById('confirm');
     confirmEl.style.display='block';
     document.getElementById('confirmText').textContent =
-      `Thanks, ${f} — we've got ${state.selections.size} block${state.selections.size===1?'':'s'} on file for you.`;
+      `Thanks, ${f} — here's what we've got on file for you:`;
+
+    const blockOrder = {AM:0, PM:1, EVE:2};
+    const sorted = Array.from(state.selections).sort((a,b)=>{
+      const [aDate, aBlk] = a.split('_');
+      const [bDate, bBlk] = b.split('_');
+      if(aDate !== bDate) return aDate.localeCompare(bDate);
+      return blockOrder[aBlk] - blockOrder[bBlk];
+    });
+    const summaryList = document.getElementById('summaryList');
+    summaryList.innerHTML = sorted.map(key=>{
+      const [dateStr, blk] = key.split('_');
+      const d = new Date(dateStr+'T00:00:00');
+      const b = ALL_BLOCKS.find(b=>b.id===blk);
+      return `<div class="srow"><span class="sdate">${fmtLong(d)}</span><span class="sblock">${b.label} (${b.sub})</span></div>`;
+    }).join('');
+
+    const plainText = [
+      `VIVA availability — ${f} ${l} (${state.role})`,
+      ...sorted.map(key=>{
+        const [dateStr, blk] = key.split('_');
+        const d = new Date(dateStr+'T00:00:00');
+        const b = ALL_BLOCKS.find(b=>b.id===blk);
+        return `${fmtLong(d)} — ${b.label} (${b.sub})`;
+      })
+    ].join('\n');
+
+    document.getElementById('copyBtn').addEventListener('click', async ()=>{
+      try{
+        await navigator.clipboard.writeText(plainText);
+        document.getElementById('copyStatus').textContent = 'Copied — paste it anywhere to keep for yourself.';
+      }catch(e){
+        document.getElementById('copyStatus').textContent = 'Could not copy — try selecting the text above manually.';
+      }
+    });
+
+    document.getElementById('rcName').textContent = `${f} ${l} · ${state.role}`;
+    document.getElementById('rcRows').innerHTML = sorted.map(key=>{
+      const [dateStr, blk] = key.split('_');
+      const d = new Date(dateStr+'T00:00:00');
+      const b = ALL_BLOCKS.find(b=>b.id===blk);
+      return `<div class="rc-row"><span class="rc-date">${fmtLong(d)}</span><span class="rc-block">${b.label} (${b.sub})</span></div>`;
+    }).join('');
+
+    document.getElementById('saveImgBtn').addEventListener('click', async ()=>{
+      const btn = document.getElementById('saveImgBtn');
+      const originalText = btn.textContent;
+      btn.textContent = 'Preparing…';
+      btn.disabled = true;
+      try{
+        const canvas = await html2canvas(document.getElementById('receiptCard'), {
+          backgroundColor: '#14171c', scale: 2
+        });
+        const link = document.createElement('a');
+        link.download = `viva-availability-${slug}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        document.getElementById('copyStatus').textContent = 'Image saved to your downloads.';
+      }catch(e){
+        console.error('Image save failed:', e);
+        document.getElementById('copyStatus').textContent = 'Could not create the image — try Copy instead.';
+      }
+      btn.textContent = originalText;
+      btn.disabled = false;
+    });
   }catch(e){
     console.error('VIVA availability save failed:', e);
     btn.disabled = false;

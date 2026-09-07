@@ -65,8 +65,11 @@
 
   .legend{margin-top:26px;padding-top:16px;border-top:1px solid var(--line);}
   .legend h3{font-family:'Oswald';text-transform:uppercase;font-size:12.5px;letter-spacing:0.1em;color:var(--muted);margin:0 0 10px;}
-  .legrow{display:flex;align-items:center;gap:9px;padding:6px 0;font-size:13.5px;}
-  .legrow .cnt{margin-left:auto;color:var(--muted);font-size:12px;}
+  .legrow{padding:6px 0;border-bottom:1px solid var(--line);}
+  .legrow:last-child{border-bottom:none;}
+  .legtop{display:flex;align-items:center;gap:9px;font-size:13.5px;}
+  .legtop .cnt{margin-left:auto;color:var(--muted);font-size:12px;}
+  .legemail{margin-left:20px;margin-top:3px;font-size:12px;color:var(--amber);user-select:all;cursor:text;}
   .dot{width:11px;height:11px;border-radius:50%;flex:none;box-shadow:0 0 6px 0 currentColor;}
   .empty-msg{text-align:center;color:var(--muted);padding:40px 10px;font-size:14px;}
   .disclaimer{text-align:center;color:var(--muted);font-size:11px;padding-top:20px;line-height:1.5;}
@@ -193,6 +196,7 @@ async function loadEntries(){
       lastName: r['Last Name'] || r.lastName || '',
       color: r.Color || r.color || '#e8a33d',
       role: r.Role || r.role || '',
+      email: r.Email || r.email || '',
       selections, _ts: ts
     };
     if(!historyBySlug[slug]) historyBySlug[slug] = [];
@@ -232,6 +236,10 @@ function formatDateBlock(key){
 
 /* Loads the "Recorded" tab: rows of {firstName, lastName, start, end}.
    Returns a map of slug -> array of [start, end] date-string ranges.
+   A blank End Date means "hidden from Start onward, indefinitely."
+   Both blank means "hidden entirely, no matter the date" — useful for
+   a cancellation or a "we're not using them" decision, not just a
+   completed recording. Delete the row whenever that changes.
    If recordedCsvUrl isn't configured yet, returns an empty map (no-op). */
 async function loadRecordedRanges(){
   if(!CONFIG.recordedCsvUrl || CONFIG.recordedCsvUrl.includes('PASTE_YOUR')) return {};
@@ -245,9 +253,11 @@ async function loadRecordedRanges(){
     parsed.data.forEach(r=>{
       const f = r['First Name'] || r.firstName || '';
       const l = r['Last Name'] || r.lastName || '';
-      const start = normalizeDateStr(r['Start Date'] || r.startDate || '');
-      const end = normalizeDateStr(r['End Date'] || r.endDate || '') || start;
-      if(!f || !l || !start) return;
+      if(!f || !l) return;
+      const rawStart = normalizeDateStr(r['Start Date'] || r.startDate || '');
+      const rawEnd = normalizeDateStr(r['End Date'] || r.endDate || '');
+      const start = rawStart || '0000-00-00'; // blank = hidden from the beginning of time
+      const end = rawEnd || '9999-12-31';     // blank = hidden indefinitely forward
       const slug = slugify(f,l);
       if(!bySlug[slug]) bySlug[slug] = [];
       bySlug[slug].push([start, end]);
@@ -408,8 +418,11 @@ async function renderDashboard(){
 
   legendList.innerHTML = entries
     .sort((a,b)=> (b._ts||'').localeCompare(a._ts||''))
-    .map(e=>`<div class="legrow"><span class="dot" style="background:${e.color};color:${e.color}"></span>
-      ${e.firstName} ${e.lastName}${e.role ? ` <span style="color:var(--muted);font-size:11px;">· ${e.role}</span>` : ''}<span class="cnt">${(e.selections||[]).length} blocks</span></div>`)
+    .map(e=>`<div class="legrow">
+      <div class="legtop"><span class="dot" style="background:${e.color};color:${e.color}"></span>
+        ${e.firstName} ${e.lastName}${e.role ? ` <span style="color:var(--muted);font-size:11px;">· ${e.role}</span>` : ''}<span class="cnt">${(e.selections||[]).length} blocks</span></div>
+      ${e.email ? `<div class="legemail">${e.email}</div>` : ''}
+    </div>`)
     .join('');
 }
 

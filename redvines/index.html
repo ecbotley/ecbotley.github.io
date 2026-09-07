@@ -255,7 +255,7 @@ async function renderDashboard(){
       const btn = document.createElement('div');
       btn.className = 'blk' + (people.length ? '' : ' empty');
       const chips = people.map(p=>
-        `<span class="namechip" style="background:${p.color}" title="${p.name}${p.role ? ' — ' + p.role : ''}">${shortLabel(p.name)}${p.role ? ' (' + p.role[0] + ')' : ''}</span>`
+        `<span class="namechip" style="background:${p.color}" title="${p.name}${p.role ? ' — ' + p.role : ''}">${p.name}${p.role ? ' (' + p.role[0] + ')' : ''}</span>`
       ).join('');
       btn.innerHTML = `<span class="blabel">${b.label}</span><div class="chiprow">${chips || '—'}</div>`;
       blocks.appendChild(btn);

@@ -297,6 +297,8 @@ function buildScheduleDates(){
   if(CONFIG.showWeekends === false){
     dates = dates.filter(d => !isWeekend(d));
   }
+  const todayIso = isoDate(new Date());
+  dates = dates.filter(d => isoDate(d) >= todayIso);
   return dates;
 }
 
@@ -332,6 +334,10 @@ async function loadEntries(){
 function renderGrid(dates, blockList){
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
+  if(dates.length === 0){
+    grid.innerHTML = '<p style="text-align:center;color:var(--muted);padding:30px 10px;">No open dates right now — check back soon.</p>';
+    return;
+  }
   let lastWeekKey = null;
   dates.forEach(day=>{
     const weekKey = isoDate(mondayOf(day));
@@ -436,6 +442,30 @@ function setNameColor(){
   updateSubmitState();
 }
 
+function copyText(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    return navigator.clipboard.writeText(text).then(()=>true).catch(()=>copyTextFallback(text));
+  }
+  return Promise.resolve(copyTextFallback(text));
+}
+function copyTextFallback(text){
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  }catch(e){
+    console.error('Copy fallback failed:', e);
+    return false;
+  }
+}
+
 async function submitAvailability(){
   const f = document.getElementById('fname').value.trim();
   const l = document.getElementById('lname').value.trim();
@@ -492,12 +522,10 @@ async function submitAvailability(){
     ].join('\n');
 
     document.getElementById('copyBtn').addEventListener('click', async ()=>{
-      try{
-        await navigator.clipboard.writeText(plainText);
-        document.getElementById('copyStatus').textContent = 'Copied — paste it anywhere to keep for yourself.';
-      }catch(e){
-        document.getElementById('copyStatus').textContent = 'Could not copy — try selecting the text above manually.';
-      }
+      const ok = await copyText(plainText);
+      document.getElementById('copyStatus').textContent = ok
+        ? 'Copied — paste it anywhere to keep for yourself.'
+        : 'Could not copy — try selecting the text above manually.';
     });
 
     document.getElementById('rcName').textContent = `${f} ${l} · ${state.role}`;
@@ -656,6 +684,11 @@ function init(){
 
   renderGrid(dates, activeBlockList);
   updateSubmitState();
+
+  if(dates.length === 0){
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('submitBtn').textContent = 'No open dates right now';
+  }
 
   if(!isConfigured()){
     document.getElementById('setupWarn').style.display = 'block';

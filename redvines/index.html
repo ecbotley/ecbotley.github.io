@@ -92,6 +92,9 @@
 <div class="wrap">
   <div class="cfgrow">
     <div id="cfgLabel" style="font-size:12.5px;color:var(--muted);"></div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;margin-left:auto;margin-right:10px;">
+      <input type="checkbox" id="showPastToggle"> Show past dates
+    </label>
     <button id="refreshBtn">Refresh responses</button>
   </div>
   <div id="bestSlot"></div>
@@ -132,6 +135,20 @@ function fmtDow(d){return d.toLocaleDateString('en-US',{weekday:'short'});}
 function fmtMD(d){return d.toLocaleDateString('en-US',{month:'numeric',day:'numeric'});}
 function fmtLong(d){return d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});}
 function slugify(f,l){return (f+l).toLowerCase().replace(/[^a-z]/g,'');}
+/* Accepts dates in whatever format the Sheet happens to display
+   (9/1/2026, 2026-09-01, etc.) and normalizes to YYYY-MM-DD so
+   comparisons are always apples-to-apples. Returns '' if unparseable. */
+function normalizeDateStr(input){
+  if(!input) return '';
+  const trimmed = String(input).trim();
+  const iso = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(iso) return `${iso[1]}-${pad(+iso[2])}-${pad(+iso[3])}`;
+  const us = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(us) return `${us[3]}-${pad(+us[1])}-${pad(+us[2])}`;
+  const parsed = new Date(trimmed);
+  if(!isNaN(parsed)) return isoDate(parsed);
+  return '';
+}
 function shortLabel(fullName){
   const parts = fullName.trim().split(/\s+/);
   if(parts.length===1) return parts[0];
@@ -188,8 +205,8 @@ async function loadRecordedRanges(){
     parsed.data.forEach(r=>{
       const f = r['First Name'] || r.firstName || '';
       const l = r['Last Name'] || r.lastName || '';
-      const start = r['Start Date'] || r.startDate || '';
-      const end = r['End Date'] || r.endDate || start;
+      const start = normalizeDateStr(r['Start Date'] || r.startDate || '');
+      const end = normalizeDateStr(r['End Date'] || r.endDate || '') || start;
       if(!f || !l || !start) return;
       const slug = slugify(f,l);
       if(!bySlug[slug]) bySlug[slug] = [];
@@ -218,6 +235,16 @@ function stripRecordedDates(entries, recordedBySlug){
   });
 }
 
+/* Drops any date that's already in the past, so old weeks quietly
+   disappear from the dashboard on their own without any manual entry. */
+function stripPastDates(entries){
+  const todayIso = isoDate(new Date());
+  return entries.map(e=>{
+    const filtered = (e.selections||[]).filter(key => key.split('_')[0] >= todayIso);
+    return {...e, selections: filtered};
+  });
+}
+
 /* Builds the date list purely from what's actually in the data —
    no configured range, so it never needs updating as you send out
    different group links with different windows. */
@@ -237,8 +264,10 @@ async function renderDashboard(){
 
   let entries = [];
   try{
+    const showPast = document.getElementById('showPastToggle').checked;
     const [rawEntries, recordedBySlug] = await Promise.all([loadEntries(), loadRecordedRanges()]);
-    entries = stripRecordedDates(rawEntries, recordedBySlug).filter(e => (e.selections||[]).length > 0);
+    const recorded = stripRecordedDates(rawEntries, recordedBySlug);
+    entries = (showPast ? recorded : stripPastDates(recorded)).filter(e => (e.selections||[]).length > 0);
   }catch(e){
     aggGrid.innerHTML = `<p class="empty-msg">Couldn't load responses: ${e.message}</p>`;
     bestSlot.innerHTML = ''; legendList.innerHTML = ''; cfgLabel.textContent = '';
@@ -322,6 +351,7 @@ async function renderDashboard(){
 }
 
 document.getElementById('refreshBtn').addEventListener('click', renderDashboard);
+document.getElementById('showPastToggle').addEventListener('change', renderDashboard);
 
 function tryUnlock(){
   const entered = document.getElementById('pinInput').value.trim();

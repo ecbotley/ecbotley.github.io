@@ -33,6 +33,16 @@
   .cfgrow button:hover{border-color:var(--amber);}
 
   .banner{background:var(--panel);border:1px solid var(--amber);border-radius:10px;padding:14px 16px;margin-bottom:18px;}
+  .changespanel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:18px;}
+  .changespanel h3{font-family:'Oswald';text-transform:uppercase;font-size:11px;letter-spacing:0.08em;
+    color:var(--muted);margin:0 0 8px;}
+  .chgrow{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;padding:6px 0;font-size:13px;
+    border-bottom:1px solid var(--line);}
+  .chgrow:last-child{border-bottom:none;}
+  .chgname{font-weight:600;color:var(--paper);}
+  .chgadd{color:#6fcf97;}
+  .chgrem{color:#e5686b;}
+  .chgrole{color:var(--amber);}
   .banner .lbl{font-family:'Oswald';text-transform:uppercase;letter-spacing:0.08em;font-size:11px;color:var(--amber);}
   .banner .val{font-size:16px;font-weight:600;margin-top:4px;}
 
@@ -98,6 +108,7 @@
     <button id="refreshBtn">Refresh responses</button>
   </div>
   <div id="bestSlot"></div>
+  <div id="recentChanges"></div>
   <div id="aggGrid"></div>
   <div class="legend">
     <h3>Responses</h3>
@@ -170,24 +181,53 @@ async function loadEntries(){
   if(!res.ok) throw new Error('Sheet fetch failed: ' + res.status);
   const text = await res.text();
   const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
-  const bySlug = {};
+  const historyBySlug = {};
   parsed.data.forEach(r=>{
     const slug = r.Slug || r.slug;
     if(!slug) return;
     const ts = r.Timestamp || r.timestamp || '';
-    if(!bySlug[slug] || ts > bySlug[slug]._ts){
-      let selections = [];
-      try{ selections = JSON.parse(r.SelectionsJSON || r.selectionsJson || '[]'); }catch(e){}
-      bySlug[slug] = {
-        firstName: r['First Name'] || r.firstName || '',
-        lastName: r['Last Name'] || r.lastName || '',
-        color: r.Color || r.color || '#e8a33d',
-        role: r.Role || r.role || '',
-        selections, _ts: ts
-      };
-    }
+    let selections = [];
+    try{ selections = JSON.parse(r.SelectionsJSON || r.selectionsJson || '[]'); }catch(e){}
+    const row = {
+      firstName: r['First Name'] || r.firstName || '',
+      lastName: r['Last Name'] || r.lastName || '',
+      color: r.Color || r.color || '#e8a33d',
+      role: r.Role || r.role || '',
+      selections, _ts: ts
+    };
+    if(!historyBySlug[slug]) historyBySlug[slug] = [];
+    historyBySlug[slug].push(row);
   });
-  return Object.values(bySlug);
+  Object.values(historyBySlug).forEach(rows => rows.sort((a,b) => a._ts.localeCompare(b._ts)));
+  const entries = Object.values(historyBySlug).map(rows => rows[rows.length-1]);
+  return { entries, historyBySlug };
+}
+
+/* Compares a person's two most recent submissions and returns what
+   actually changed — added/removed date-blocks and any role switch.
+   Returns null if there's no prior submission to compare against,
+   or nothing meaningful changed. */
+function diffLatestSubmission(rows){
+  if(!rows || rows.length < 2) return null;
+  const prev = rows[rows.length-2];
+  const curr = rows[rows.length-1];
+  const prevSet = new Set(prev.selections||[]);
+  const currSet = new Set(curr.selections||[]);
+  const added = (curr.selections||[]).filter(k => !prevSet.has(k));
+  const removed = (prev.selections||[]).filter(k => !currSet.has(k));
+  const roleChanged = prev.role && curr.role && prev.role !== curr.role;
+  if(added.length===0 && removed.length===0 && !roleChanged) return null;
+  return {
+    name: `${curr.firstName} ${curr.lastName}`, color: curr.color, ts: curr._ts,
+    added, removed,
+    roleChange: roleChanged ? {from:prev.role, to:curr.role} : null
+  };
+}
+function formatDateBlock(key){
+  const [dateStr, blk] = key.split('_');
+  const d = new Date(dateStr+'T00:00:00');
+  const b = ALL_BLOCKS.find(b=>b.id===blk);
+  return `${fmtMD(d)} ${b ? b.label : blk}`;
 }
 
 /* Loads the "Recorded" tab: rows of {firstName, lastName, start, end}.
@@ -263,14 +303,17 @@ async function renderDashboard(){
   cfgLabel.textContent = 'Loading…';
 
   let entries = [];
+  let historyBySlug = {};
   try{
     const showPast = document.getElementById('showPastToggle').checked;
-    const [rawEntries, recordedBySlug] = await Promise.all([loadEntries(), loadRecordedRanges()]);
-    const recorded = stripRecordedDates(rawEntries, recordedBySlug);
+    const [loaded, recordedBySlug] = await Promise.all([loadEntries(), loadRecordedRanges()]);
+    historyBySlug = loaded.historyBySlug;
+    const recorded = stripRecordedDates(loaded.entries, recordedBySlug);
     entries = (showPast ? recorded : stripPastDates(recorded)).filter(e => (e.selections||[]).length > 0);
   }catch(e){
     aggGrid.innerHTML = `<p class="empty-msg">Couldn't load responses: ${e.message}</p>`;
     bestSlot.innerHTML = ''; legendList.innerHTML = ''; cfgLabel.textContent = '';
+    document.getElementById('recentChanges').innerHTML = '';
     return;
   }
 
@@ -278,11 +321,31 @@ async function renderDashboard(){
     aggGrid.innerHTML = '<p class="empty-msg">No responses yet from any link.</p>';
     bestSlot.innerHTML = ''; legendList.innerHTML = '';
     cfgLabel.textContent = '0 responses';
+    document.getElementById('recentChanges').innerHTML = '';
     return;
   }
 
   const dates = datesFromEntries(entries);
   cfgLabel.textContent = `${entries.length} response${entries.length===1?'':'s'} · ${dates.length} date${dates.length===1?'':'s'} spanned: ${fmtMD(dates[0])}–${fmtMD(dates[dates.length-1])}`;
+
+  const recentChangesEl = document.getElementById('recentChanges');
+  const changes = Object.values(historyBySlug)
+    .map(rows => diffLatestSubmission(rows))
+    .filter(Boolean)
+    .sort((a,b) => b.ts.localeCompare(a.ts));
+  if(changes.length){
+    recentChangesEl.innerHTML = `<div class="changespanel"><h3>Recent Updates</h3>` +
+      changes.map(c=>{
+        const parts = [];
+        if(c.added.length) parts.push(`<span class="chgadd">+ ${c.added.map(formatDateBlock).join(', ')}</span>`);
+        if(c.removed.length) parts.push(`<span class="chgrem">− ${c.removed.map(formatDateBlock).join(', ')}</span>`);
+        if(c.roleChange) parts.push(`<span class="chgrole">Role: ${c.roleChange.from} → ${c.roleChange.to}</span>`);
+        return `<div class="chgrow"><span class="dot" style="background:${c.color};color:${c.color}"></span>` +
+          `<span class="chgname">${c.name}</span>${parts.join(' · ')}</div>`;
+      }).join('') + `</div>`;
+  } else {
+    recentChangesEl.innerHTML = '';
+  }
 
   const tally = {};
   entries.forEach(e=>{

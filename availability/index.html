@@ -44,6 +44,10 @@
   .dot{width:11px;height:11px;border-radius:50%;flex:none;box-shadow:0 0 6px 0 currentColor;}
 
   .rolebar{display:flex;gap:10px;padding:2px 0 14px;}
+  .emailbar{padding:0 0 14px;}
+  .emailbar input{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--paper);
+    font-family:'Inter';font-size:15px;padding:12px 13px;border-radius:9px;box-sizing:border-box;}
+  .emailbar input:focus{outline:none;border-color:var(--amber);}
   .roleopt{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--muted);
     font-family:'Inter';font-weight:600;font-size:13.5px;padding:11px;border-radius:9px;
     text-align:center;cursor:pointer;user-select:none;transition:transform .08s ease;}
@@ -153,6 +157,9 @@
     <div class="rolebar">
       <div class="roleopt" id="roleTalent" data-role="Talent">Talent</div>
       <div class="roleopt" id="roleCrew" data-role="Crew">Crew</div>
+    </div>
+    <div class="emailbar" id="emailBar" style="display:none;">
+      <input id="email" type="email" placeholder="Email (for your session brief, sides & Wrapbook invite)" autocomplete="email">
     </div>
     <div class="colorline" id="colorline"></div>
 
@@ -404,6 +411,10 @@ function repaintSelections(){
   });
 }
 
+function isValidEmail(v){
+  return /\S+@\S+\.\S+/.test(v);
+}
+
 function updateSubmitState(){
   const btn = document.getElementById('submitBtn');
   if(!isConfigured()) return; // setup warning already disabled it
@@ -419,6 +430,14 @@ function updateSubmitState(){
     btn.textContent = 'Select Talent or Crew to continue';
     return;
   }
+  if(state.role === 'Talent'){
+    const email = document.getElementById('email').value.trim();
+    if(!isValidEmail(email)){
+      btn.disabled = true;
+      btn.textContent = 'Enter a valid email to continue';
+      return;
+    }
+  }
   btn.disabled = false;
   btn.textContent = 'Send my availability';
 }
@@ -427,6 +446,7 @@ function selectRole(role){
   state.role = role;
   document.getElementById('roleTalent').classList.toggle('selected', role === 'Talent');
   document.getElementById('roleCrew').classList.toggle('selected', role === 'Crew');
+  document.getElementById('emailBar').style.display = role === 'Talent' ? 'block' : 'none';
   updateSubmitState();
 }
 
@@ -475,6 +495,7 @@ async function submitAvailability(){
     firstName: f, lastName: l, slug,
     color: state.color,
     role: state.role,
+    email: state.role === 'Talent' ? document.getElementById('email').value.trim() : '',
     selectionsJson: JSON.stringify(Array.from(state.selections))
   };
   const btn = document.getElementById('submitBtn');
@@ -488,6 +509,7 @@ async function submitAvailability(){
     if(!res.ok) throw new Error('Webhook responded ' + res.status);
     document.getElementById('talentView').querySelector('.namebar').style.display='none';
     document.querySelector('.rolebar').style.display='none';
+    document.getElementById('emailBar').style.display='none';
     document.getElementById('colorline').style.display='none';
     document.getElementById('grid').style.display='none';
     document.querySelector('.submitbar').style.display='none';
@@ -704,6 +726,7 @@ function init(){
   document.getElementById('lname').addEventListener('input', updateSubmitState);
   document.getElementById('roleTalent').addEventListener('click', ()=>selectRole('Talent'));
   document.getElementById('roleCrew').addEventListener('click', ()=>selectRole('Crew'));
+  document.getElementById('email').addEventListener('input', updateSubmitState);
   document.getElementById('submitBtn').addEventListener('click', submitAvailability);
 }
 init();

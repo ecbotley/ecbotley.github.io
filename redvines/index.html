@@ -36,10 +36,12 @@
   .changespanel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:18px;}
   .changespanel h3{font-family:'Oswald';text-transform:uppercase;font-size:11px;letter-spacing:0.08em;
     color:var(--muted);margin:0 0 8px;}
-  .chgrow{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;padding:6px 0;font-size:13px;
-    border-bottom:1px solid var(--line);}
+  .chgrow{padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;}
   .chgrow:last-child{border-bottom:none;}
+  .chgtop{display:flex;align-items:center;gap:7px;}
   .chgname{font-weight:600;color:var(--paper);}
+  .chgdate{color:var(--muted);font-size:12px;}
+  .chgdetails{margin-left:18px;margin-top:3px;}
   .chgadd{color:#6fcf97;}
   .chgrem{color:#e5686b;}
   .chgrole{color:var(--amber);}
@@ -166,6 +168,7 @@ function pad(n){return String(n).padStart(2,'0');}
 function isoDate(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
 function fmtDow(d){return d.toLocaleDateString('en-US',{weekday:'short'});}
 function fmtMD(d){return d.toLocaleDateString('en-US',{month:'numeric',day:'numeric'});}
+function fmtMonDay(d){return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
 function fmtLong(d){return d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});}
 function slugify(f,l){return (f+l).toLowerCase().replace(/[^a-z]/g,'');}
 /* Accepts dates in whatever format the Sheet happens to display
@@ -369,8 +372,12 @@ async function renderDashboard(){
         if(c.added.length) parts.push(`<span class="chgadd">+ ${c.added.map(formatDateBlock).join(', ')}</span>`);
         if(c.removed.length) parts.push(`<span class="chgrem">− ${c.removed.map(formatDateBlock).join(', ')}</span>`);
         if(c.roleChange) parts.push(`<span class="chgrole">Role: ${c.roleChange.from} → ${c.roleChange.to}</span>`);
-        return `<div class="chgrow"><span class="dot" style="background:${c.color};color:${c.color}"></span>` +
-          `<span class="chgname">${c.name}</span>${parts.join(' · ')}</div>`;
+        const submittedOn = fmtMonDay(new Date(c.ts));
+        return `<div class="chgrow">
+          <div class="chgtop"><span class="dot" style="background:${c.color};color:${c.color}"></span>
+            <span class="chgname">${c.name}</span><span class="chgdate">${submittedOn}</span></div>
+          <div class="chgdetails">${parts.join(' · ')}</div>
+        </div>`;
       }).join('') + `</div>`;
   } else {
     recentChangesEl.innerHTML = '';

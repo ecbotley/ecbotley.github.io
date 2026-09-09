@@ -77,9 +77,14 @@
   .lockscreen{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;
     gap:18px;padding:0 24px;text-align:center;}
   .lockscreen h2{font-family:'Bebas Neue';font-size:28px;letter-spacing:0.03em;margin:0;}
-  .pininput{background:var(--panel);border:1px solid var(--line);color:var(--paper);font-family:'Inter';
-    font-size:22px;letter-spacing:0.4em;text-align:center;padding:14px;border-radius:9px;width:200px;}
-  .pininput:focus{outline:none;border-color:var(--amber);}
+  .codedisplay{background:var(--panel);border:1px solid var(--line);color:var(--paper);font-family:'Inter';
+    font-size:26px;letter-spacing:0.5em;text-align:center;padding:14px;border-radius:9px;width:220px;
+    min-height:24px;}
+  .keypad{display:grid;grid-template-columns:repeat(3,64px);gap:10px;}
+  .keybtn{background:var(--panel-raised);border:1px solid var(--line);color:var(--paper);font-family:'Inter';
+    font-weight:700;font-size:20px;padding:16px 0;border-radius:9px;cursor:pointer;user-select:none;}
+  .keybtn:active{transform:scale(0.94);}
+  .keybtn-clear, .keybtn-back{font-size:13px;color:var(--muted);}
   .unlockbtn{background:var(--amber);color:#1a1204;border:none;border-radius:9px;font-family:'Oswald';
     text-transform:uppercase;letter-spacing:0.05em;font-size:14px;font-weight:600;padding:12px 24px;cursor:pointer;}
   .lockerr{color:#e5686b;font-size:12.5px;min-height:16px;}
@@ -89,8 +94,22 @@
 
 <div class="lockscreen" id="lockScreen">
   <div class="eyebrow"><span class="tally"></span>¡VIVA! LA SANTA BIBLIA</div>
-  <h2>ENTER PIN</h2>
-  <input type="tel" id="pinInput" class="pininput" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
+  <h2>ENTER ACCESS CODE</h2>
+  <div class="codedisplay" id="codeDisplay"></div>
+  <div class="keypad" id="keypad">
+    <button class="keybtn" data-digit="1">1</button>
+    <button class="keybtn" data-digit="2">2</button>
+    <button class="keybtn" data-digit="3">3</button>
+    <button class="keybtn" data-digit="4">4</button>
+    <button class="keybtn" data-digit="5">5</button>
+    <button class="keybtn" data-digit="6">6</button>
+    <button class="keybtn" data-digit="7">7</button>
+    <button class="keybtn" data-digit="8">8</button>
+    <button class="keybtn" data-digit="9">9</button>
+    <button class="keybtn keybtn-clear" id="clearBtn">Clear</button>
+    <button class="keybtn" data-digit="0">0</button>
+    <button class="keybtn keybtn-back" id="backBtn">⌫</button>
+  </div>
   <button class="unlockbtn" id="unlockBtn">Unlock</button>
   <div class="lockerr" id="lockErr"></div>
 </div>
@@ -429,23 +448,38 @@ async function renderDashboard(){
 document.getElementById('refreshBtn').addEventListener('click', renderDashboard);
 document.getElementById('showPastToggle').addEventListener('change', renderDashboard);
 
+let enteredCode = '';
+function updateCodeDisplay(){
+  document.getElementById('codeDisplay').textContent = '•'.repeat(enteredCode.length);
+}
 function tryUnlock(){
-  const entered = document.getElementById('pinInput').value.trim();
-  if(entered === CONFIG.pin){
+  if(enteredCode === CONFIG.pin){
     document.getElementById('lockScreen').style.display = 'none';
     document.getElementById('dashboardContent').style.display = 'block';
     renderDashboard();
   } else {
-    document.getElementById('lockErr').textContent = 'Wrong PIN — try again.';
-    document.getElementById('pinInput').value = '';
-    document.getElementById('pinInput').focus();
+    document.getElementById('lockErr').textContent = 'Wrong code — try again.';
+    enteredCode = '';
+    updateCodeDisplay();
   }
 }
-document.getElementById('unlockBtn').addEventListener('click', tryUnlock);
-document.getElementById('pinInput').addEventListener('keydown', e=>{
-  if(e.key === 'Enter') tryUnlock();
+document.querySelectorAll('.keybtn[data-digit]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if(enteredCode.length >= 8) return;
+    enteredCode += btn.dataset.digit;
+    updateCodeDisplay();
+  });
 });
-document.getElementById('pinInput').focus();
+document.getElementById('backBtn').addEventListener('click', ()=>{
+  enteredCode = enteredCode.slice(0, -1);
+  updateCodeDisplay();
+});
+document.getElementById('clearBtn').addEventListener('click', ()=>{
+  enteredCode = '';
+  updateCodeDisplay();
+  document.getElementById('lockErr').textContent = '';
+});
+document.getElementById('unlockBtn').addEventListener('click', tryUnlock);
 </script>
 </div>
 </body>
